@@ -1,6 +1,7 @@
 #include "chip8.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+#include <algorithm>
 #include <bitset>
 #include <cstring>
 #include <fstream>
@@ -67,13 +68,14 @@ void Chip8::Run() {
   while (running_) {
 
     Instruction instruction{Fetch()};
+    printf("Got instrucion %.2x %.2X\n", instruction.first, instruction.second);
     pc_ += 2;
     Decode(instruction);
     DrawToScreen(renderer, texture);
     UpdateTimers();
     HandleSdlEvents();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
 
   Mix_FreeChunk(mix_chunk_);
@@ -261,12 +263,22 @@ void Chip8::Decode(Instruction instruction) {
     if (instruction.second == 0x07) {
       variable_registers_[x] = delay_timer_;
     } else if (instruction.second == 0x0a) {
-      pc_ -= 2;
+      if (std::none_of(keys_pressed_.begin(), keys_pressed_.end(),
+                       [](bool val) { return val; })) {
+        pc_ -= 2;
+      } else {
+        for (std::size_t i{0}; i < 16; i++) {
+          if (keys_pressed_[i])
+            variable_registers_[x] = i;
+          break;
+        }
+      }
+
     } else if (instruction.second == 0x15) {
       delay_timer_ = variable_registers_[x];
     } else if (instruction.second == 0x18) {
       sound_timer_ = variable_registers_[x];
-    } else if (instruction.second == 0x13) {
+    } else if (instruction.second == 0x1e) {
       if (index_register_ + variable_registers_[x] > 0xFFF) {
         variable_registers_[0xf] = 1;
       } else {
