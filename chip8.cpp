@@ -1,5 +1,6 @@
 #include "chip8.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include <bitset>
 #include <cstring>
 #include <fstream>
@@ -19,37 +20,53 @@ void UnknownInstruction(Chip8::Instruction instruction) {
 void Chip8::UpdateTimers() {
   if (delay_timer_ > 0)
     --delay_timer_;
-  if (sound_timer_ > 0)
-    --sound_timer_;
+  if (sound_timer_ > 0) {
+    Mix_PlayChannel(-1, mix_chunk_, 0);
+    sound_timer_ = 0;
+  }
 }
 
-void Chip8::Run() {
+void Chip8::Init() {
   // Load font sprites to memory
   std::copy(kFontSprites.begin(), kFontSprites.end(), &memory_[kFontLocation]);
 
   // Initialize SDL
   if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
     printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-    exit(1);
+    running_ = false;
   }
   window = SDL_CreateWindow("CHIP-8 Emulator", SDL_WINDOWPOS_UNDEFINED,
                             SDL_WINDOWPOS_UNDEFINED, kScreenWidth,
                             kScreenHeight, SDL_WINDOW_SHOWN);
   if (window == NULL) {
     printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-    exit(2);
+    running_ = false;
   }
+  if (Mix_OpenAudio(44100, AUDIO_S16SYS, 2, 512) < 0) {
+    printf("Could not open Audio: %s\n", SDL_GetError());
+    running_ = false;
+  }
+  Mix_AllocateChannels(2);
+  mix_chunk_ = Mix_LoadWAV(kSoundFile.c_str());
+  if (mix_chunk_ == NULL) {
+    printf("Could not load wav: %s\n", SDL_GetError());
+    running_ = false;
+  }
+
+  pc_ = kProgramStart;
+}
+
+void Chip8::Run() {
+  Init();
   // Create renderer
   SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
   SDL_RenderSetLogicalSize(renderer, kScreenWidth, kScreenHeight);
   SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                                            SDL_TEXTUREACCESS_STREAMING, 64, 32);
 
-  pc_ = kProgramStart;
   while (running_) {
+
     Instruction instruction{Fetch()};
-    // printf("Got instruction:  %.2X%.2X\n", instruction.first,
-    //        instruction.second);
     pc_ += 2;
     Decode(instruction);
     DrawToScreen(renderer, texture);
@@ -59,6 +76,7 @@ void Chip8::Run() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
+  Mix_FreeChunk(mix_chunk_);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();

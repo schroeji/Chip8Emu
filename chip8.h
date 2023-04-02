@@ -2,6 +2,7 @@
 #define CHIP8_H_
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include <array>
 #include <cstdint>
 #include <map>
@@ -30,12 +31,15 @@ private:
 
   void HandleSdlEvents();
 
+  void Init();
+
   // Constants
   static constexpr std::size_t kMemorySize{4096};
   static constexpr std::size_t kScreenHeight{512};
   static constexpr std::size_t kScreenWidth{1024};
   static constexpr std::size_t kFontLocation{0x050};
   static constexpr std::uint16_t kProgramStart{0x200};
+  std::string const kSoundFile{"sound_trimmed.wav"};
   static constexpr std::array<std::uint8_t, 80> kFontSprites{
       0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
       0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -78,6 +82,7 @@ private:
   SDL_Window *window;
   bool redraw_{true};
   bool running_{true};
+  Mix_Chunk *mix_chunk_;
 };
 
 #endif // CHIP8_H_

@@ -15,7 +15,7 @@ CFLAGS  = -Wall -MD -std=c++17
 TARGET = Chip8Emu
 
 #includes
-INC= -lSDL2main -lSDL2 -I ./
+INC= -lSDL2main -lSDL2 -lSDL2_mixer -I ./
 
 SRC=$(wildcard ./main.cpp ./chip8.cpp)
 
